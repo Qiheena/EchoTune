@@ -1,0 +1,17 @@
+{
+  "name": "discord-music-bot",
+  "version": "1.0.0",
+  "description": "A feature-rich Discord music bot using Firebase and Discord.js v14.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.17.0",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "firebase": "^10.12.3",
+    "ytdl-core": "^4.11.5",
+    "yt-search": "^2.10.4"
+  }
+}

@@ -1,0 +1,25 @@
+# render.yaml
+# Yeh file Render ko aapki service banane ka blueprint deti hai.
+
+services:
+  - type: web
+    name: discord-music-bot
+    # Dockerfile ka upyog karke build karein
+    dockerfilePath: Dockerfile
+    
+    # Root directory jahan Dockerfile hai
+    rootDir: .
+    
+    # Bot ko hamesha ON rakhne ke liye 'start' command
+    startCommand: "node index.js" 
+    
+    # Environment Variables (Inko Render UI mein secret keys ki tarah set karna hoga)
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false # Aapko yeh value manually Render mein set karni hogi
+      - key: FIREBASE_API_KEY
+        sync: false 
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: YOUTUBE_API_KEY # Agar aap advance search/playlist support jodte hain
+        sync: false
