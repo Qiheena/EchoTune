@@ -1,5 +1,5 @@
 // File: index.js
-
+require("./server"); 
 require('dotenv').config();
 const { ExtendedClient } = require('./src/Client');
 const { readdirSync } = require('fs');
