@@ -26,7 +26,7 @@ class MusicPlayer {
         this.previous = []; // Previous songs ke liye
         this.current = null;
         this.loopMode = 'none'; // 'none', 'song', 'queue'
-        this.volume = config.MUSIC.DEFAULT_VOLUME; // Default volume set kiya
+        this.volume = config.MUSIC.DEFAULTVOLUME; // Fixed: DEFAULTVOLUME not DEFAULT_VOLUME
         this.message = null; // Playback message reference
         this.timeout = null; // Inactivity timeout
         
@@ -52,7 +52,6 @@ class MusicPlayer {
      * @param {import('discord.js').VoiceChannel} channel - Voice channel jahan bot ko join karna hai.
      */
     async join(channel) {
-        // ... (Join logic remains the same) ...
         try {
             this.voiceConnection = joinVoiceChannel({
                 channelId: channel.id,
@@ -96,7 +95,7 @@ class MusicPlayer {
                 this.sendFeedback('⏰ Koi activity nahi, main channel chhod raha hoon.');
                 this.destroy('Inactivity Timeout');
             }
-        }, config.MUSIC.INACTIVITY_TIMEOUT_MS); 
+        }, config.MUSIC.INACTIVITYTIMEOUTMS); // Fixed: INACTIVITYTIMEOUTMS not INACTIVITY_TIMEOUT_MS
     }
 
     /**
@@ -105,7 +104,7 @@ class MusicPlayer {
      * @param {import('discord.js').ChatInputCommandInteraction|import('discord.js').Message} interaction - Jahan se command aaya.
      */
     addTrack(track, interaction) {
-        if (this.queue.length >= config.MUSIC.MAX_QUEUE_SIZE) {
+        if (this.queue.length >= config.MUSIC.MAXQUEUESIZE) { // Fixed: MAXQUEUESIZE not MAX_QUEUE_SIZE
             this.sendFeedback('❌ Queue full hai! Maximum 50 gaane ho sakte hain.');
             return;
         }
@@ -206,7 +205,6 @@ class MusicPlayer {
         this.updatePlaybackMessage();
     }
 
-
     /**
      * Loop mode ko set karta hai (none, song, queue).
      * @param {string} mode - Naya loop mode.
@@ -221,7 +219,6 @@ class MusicPlayer {
         this.sendFeedback(`🔁 Loop mode set to: **${mode.toUpperCase()}**`);
         this.updatePlaybackMessage();
     }
-
 
     /**
      * Play/Pause button ko toggle karta hai.
@@ -326,7 +323,6 @@ class MusicPlayer {
      * @returns {{embeds: EmbedBuilder[], components: ActionRowBuilder[]}}
      */
     getPlaybackMessageContent() {
-        // ... (Button logic remains the same, but fields/footer updated) ...
         const isPlaying = this.audioPlayer.state.status === AudioPlayerStatus.Playing;
         const statusIcon = isPlaying ? '▶️' : (this.audioPlayer.state.status === AudioPlayerStatus.Paused ? '⏸️' : '⏹️');
         const queueStatus = this.queue.length > 0 ? `+${this.queue.length} aur` : 'Queue Khali';
@@ -343,11 +339,11 @@ class MusicPlayer {
             .setDescription(this.current ? 
                 `**[${this.current.title}](${this.current.url})**\n*Requester: ${this.current.requester}*` : 
                 `Koi gaana nahi chal raha hai.`)
-            .setFields([
+            .addFields(
                 { name: 'Queue Size', value: `${this.queue.length}`, inline: true },
                 { name: 'Volume', value: `🔊 ${volumeDisplay}%`, inline: true },
-                { name: 'Loop Mode', value: `${this.loopMode.toUpperCase()}`, inline: true },
-            ])
+                { name: 'Loop Mode', value: `${this.loopMode.toUpperCase()}`, inline: true }
+            )
             .setThumbnail(this.current ? `https://img.youtube.com/vi/${ytdl.getVideoID(this.current.url)}/default.jpg` : null)
             .setFooter({ text: `Next: ${this.queue[0]?.title || 'Koi nahi'}` });
 
@@ -358,12 +354,12 @@ class MusicPlayer {
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(this.previous.length === 0),
             new ButtonBuilder()
-                .setCustomId(config.CUSTOM_IDS.PLAY_PAUSE)
+                .setCustomId(config.CUSTOM_IDS.PAUSE_RESUME) // Fixed: PAUSE_RESUME not PLAY_PAUSE
                 .setLabel(isPlaying ? '⏸️ Roko' : '▶️ Chalao')
                 .setStyle(isPlaying ? ButtonStyle.Danger : ButtonStyle.Success)
                 .setDisabled(!this.current),
             new ButtonBuilder()
-                .setCustomId(config.CUSTOM_IDS.SKIP)
+                .setCustomId(config.CUSTOM_IDS.NEXT) // Fixed: NEXT not SKIP
                 .setLabel('⏭️ Skip')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(this.queue.length === 0 && this.loopMode !== 'queue'),
