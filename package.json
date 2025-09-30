@@ -11,14 +11,11 @@
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "firebase": "^10.12.3",
-<<<<<<< HEAD
     "firebase-admin": "^11.10.1",
     "ytdl-core": "^4.11.5",
     "yt-search": "^2.10.4"
-=======
     "firebase-admin": "^13.5.0",
     "yt-search": "^2.10.4",
     "ytdl-core": "^4.11.5"
->>>>>>> a3a78b8 (some update)
   }
 }
