@@ -5,7 +5,7 @@ module.exports = {
     // -------------------------------------------------------------------------
     // General Bot Configuration
     // -------------------------------------------------------------------------
-    DEFAULT_PREFIX: '!',
+    PREFIX: '!', // Changed from DEFAULT_PREFIX to PREFIX (what your code expects)
     FIREBASE_DB_URL: 'YOUR_FIREBASE_DB_URL_HERE', // Replace with your actual database URL
 
     // -------------------------------------------------------------------------
@@ -30,12 +30,13 @@ module.exports = {
         INACTIVITYTIMEOUTMS: 300000,    // 5 minutes inactivity timeout in milliseconds
     },
 
-    // Custom Button IDs for music controls if any (example)
-    CUSTOMIDS: {
+    // Custom Button IDs for music controls - FIXED STRUCTURE
+    // Your code expects CUSTOM_IDS (with underscore) not CUSTOMIDS
+    CUSTOM_IDS: {
         PREVIOUS: 'previous',
-        PLAYPAUSE: 'playpause',
-        SKIP: 'skip',
-        QUEUE: 'queue',
+        PAUSE_RESUME: 'pause_resume',    // Your code expects PAUSE_RESUME, not PLAYPAUSE
         STOP: 'stop',
-    },
+        NEXT: 'next',                    // Your code expects NEXT, not SKIP
+        QUEUE: 'queue'
+    }
 };
