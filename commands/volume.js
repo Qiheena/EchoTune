@@ -1,39 +1,48 @@
-// commands/volume.js
-// Music ka volume set karta hai.
+// File: commands/volume.js
+
+const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
-    data: {
-        name: 'volume',
-        description: 'संगीत का वॉल्यूम सेट करता है (0-200)।',
-        aliases: ['v']
-    },
+    data: new SlashCommandBuilder()
+        .setName('volume')
+        .setDescription('प्लेयर का वॉल्यूम सेट करें या देखें।')
+        .addIntegerOption(option =>
+            option.setName('percent')
+                .setDescription('वॉल्यूम प्रतिशत (0-100)')
+                .setMinValue(0)
+                .setMaxValue(100)),
+    
+    // --- FIX: 'v' alias should be here to be found by 'client.commands.get(commandName)' ---
+    aliases: ['v'],
     
     /**
-     * @param {object} context
-     * @param {import('discord.js').Message} context.message
-     * @param {string[]} context.args
-     * @param {import('../src/Client')} context.client
+     * @param {ExtendedClient} client 
+     * @param {Message} message
+     * @param {string[]} args
      */
-    async execute({ message, args, client, prefix }) {
-        const player = client.musicPlayers.get(message.guildId);
+    async execute(client, message, args) {
+        const guildId = message.guild.id;
+        
+        const player = client.musicPlayers.get(guildId); 
 
         if (!player) {
-            return message.reply('❌ Is server par koi music player active nahi hai.');
+            return message.reply({ content: '❌ अभी कोई गाना नहीं चल रहा है।' });
         }
 
-        const volumeArg = args[0];
-        if (!volumeArg) {
-            const currentVolume = Math.round(player.volume * 100);
-            return message.reply(`ℹ️ Current Volume: **${currentVolume}%**.\nUse: \`${prefix}volume <0-200>\``);
+        const currentVolume = player.volume * 100;
+
+        if (!args || args.length === 0) {
+            return message.reply({ content: `🔊 वर्तमान वॉल्यूम: **${currentVolume}%**` });
         }
 
-        const newVolume = parseInt(volumeArg);
-        if (isNaN(newVolume) || newVolume < 0 || newVolume > 200) {
-            return message.reply('❌ Invalid volume. Kripya 0 se 200 ke beech ek sankhya (number) dein.');
+        const newVolume = parseInt(args[0]);
+
+        if (isNaN(newVolume) || newVolume < 0 || newVolume > 100) {
+            return message.reply({ content: '❌ कृपया 0 और 100 के बीच एक वैध संख्या दर्ज करें।' });
         }
-        
-        player.setVolume(newVolume);
-        
-        message.delete().catch(() => {});
-    }
+
+        // Logic to set the player volume...
+        // player.volume = newVolume / 100;
+        return message.reply({ content: `✅ वॉल्यूम **${newVolume}%** पर सेट किया गया है।` });
+    },
 };

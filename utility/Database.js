@@ -1,67 +1,101 @@
 // utility/Database.js
-// यह Firebase Admin SDK का उपयोग करके Firestore से जुड़ता है और डेटा को संभालता है।
+// Firebase Admin SDK ko initialize karta hai aur database operations handle karta hai.
 
 const admin = require('firebase-admin');
-const config = require('../config');
 
-// Firebase Admin SDK को service account credentials के साथ initialize करें
-try {
-    const serviceAccount = {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Private key ko ek line mein replace kiya gaya hai,
-        // ya Base64 se decode kiya ja sakta hai (Render par commonly used).
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
+/**
+ * .env variables se Firebase credentials fetch karta hai.
+ * @returns {object | null} Firebase admin configuration object or null if key is missing.
+ */
+function getFirebaseConfig() {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (!privateKey) {
+        console.error('FATAL: FIREBASE_PRIVATE_KEY environment variable is missing!');
+        return null;
+    }
+
+    // Newline characters ko replace karte hain, jo ENV mein escaped hote hain
+    const sanitizedPrivateKey = privateKey.replace(/\\n/g, '\n');
+
+    return {
+        type: process.env.FIREBASE_TYPE,
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+        private_key: sanitizedPrivateKey,
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+        client_id: process.env.FIREBASE_CLIENT_ID,
+        auth_uri: process.env.FIREBASE_AUTH_URI,
+        token_uri: process.env.FIREBASE_TOKEN_URI,
+        auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
+        client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
+        universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN,
     };
-
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('✅ Firebase Admin SDK successfully initialized.');
-
-} catch (error) {
-    console.error("❌ Firebase initialization failed. Check your .env credentials.", error.message);
 }
 
-const db = admin.firestore();
-
 /**
- * Guild (Server) ke settings (jaise prefix) ko fetch karta hai.
- * Agar data nahi milta, toh default settings wapas karta hai.
- * @param {string} guildId - Server ka ID.
- * @returns {Promise<object>} Guild settings.
+ * Singleton class jo Firebase initialization aur Firestore operations handle karti hai.
  */
-async function getGuildSettings(guildId) {
-    try {
-        const docRef = db.collection('guilds').doc(guildId);
-        const doc = await docRef.get();
-
-        if (doc.exists) {
-            // Agar settings Firestore mein maujood hain
-            return doc.data();
-        } else {
-            // Agar settings nahi hain, toh default prefix wapas karein
-            return { prefix: config.DEFAULT_PREFIX };
+class Database {
+    constructor() {
+        if (!admin.apps.length) {
+            const config = getFirebaseConfig();
+            if (!config) {
+                console.error('❌ Firebase initialization failed. Check your .env credentials.');
+                throw new Error('Firebase configuration missing.');
+            }
+            try {
+                admin.initializeApp({
+                    credential: admin.credential.cert(config),
+                    databaseURL: `https://${config.project_id}.firebaseio.com`
+                });
+                console.log('✅ Firebase Admin SDK initialized successfully.');
+            } catch (e) {
+                console.error('❌ Firebase initialization failed. Check your .env credentials.', e);
+                throw e; // Initialization error ko aage badha do
+            }
         }
-    } catch (error) {
-        console.error(`Error fetching settings for guild ${guildId}:`, error);
-        return { prefix: config.DEFAULT_PREFIX };
+        this.db = admin.firestore();
+        this.collectionPath = 'discord-bot-config'; // Main collection jahan server data store hoga
+    }
+
+    /**
+     * Kisi specific guild (server) ka prefix fetch karta hai.
+     * Agar custom prefix nahi mila, toh default prefix return karta hai.
+     * @param {string} guildId - Discord Server ID
+     * @returns {Promise<string>} Prefix string
+     */
+    async getPrefix(guildId) {
+        try {
+            const docRef = this.db.collection(this.collectionPath).doc(guildId);
+            const doc = await docRef.get();
+
+            if (doc.exists) {
+                return doc.data().prefix || '!'; // Agar document hai par prefix nahi, toh default
+            } else {
+                return '!'; // Document nahi hai, toh default
+            }
+        } catch (error) {
+            console.error('Error fetching prefix from Firestore:', error);
+            return '!'; // Error aane par bhi default
+        }
+    }
+
+    /**
+     * Kisi specific guild (server) ke liye naya prefix set karta hai.
+     * @param {string} guildId - Discord Server ID
+     * @param {string} newPrefix - Naya prefix
+     */
+    async setPrefix(guildId, newPrefix) {
+        try {
+            const docRef = this.db.collection(this.collectionPath).doc(guildId);
+            await docRef.set({ prefix: newPrefix }, { merge: true });
+        } catch (error) {
+            console.error('Error setting prefix in Firestore:', error);
+            throw new Error('Prefix save nahi ho paya.');
+        }
     }
 }
 
-/**
- * Guild ke settings (jaise prefix) ko Firestore mein set karta hai.
- * @param {string} guildId - Server ka ID.
- * @param {object} settings - Nayi settings ka object.
- */
-async function setGuildSettings(guildId, settings) {
-    try {
-        const docRef = db.collection('guilds').doc(guildId);
-        await docRef.set(settings, { merge: true }); // Merge: true purane data ko barqarar rakhta hai
-        console.log(`Settings saved for guild ${guildId}`);
-    } catch (error) {
-        console.error(`Error saving settings for guild ${guildId}:`, error);
-    }
-}
-
-module.exports = { db, getGuildSettings, setGuildSettings };
+// Database class ko seedha export karo
+module.exports = { Database };

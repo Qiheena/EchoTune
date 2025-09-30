@@ -1,35 +1,41 @@
-// config.js
-// Bot ke liye Global Settings
-
-const { ActivityType } = require('discord.js');
+// File: config.js
+const { GatewayIntentBits } = require('discord.js');
 
 module.exports = {
-    // BOT CONFIGURATION
-    TOKEN: process.env.DISCORD_TOKEN,
+    // -------------------------------------------------------------------------
+    // General Bot Configuration
+    // -------------------------------------------------------------------------
     DEFAULT_PREFIX: '!',
-    PRESENCE: {
-        activities: [{ name: 'YouTube Music', type: ActivityType.Listening }],
-        status: 'online',
+    FIREBASE_DB_URL: 'YOUR_FIREBASE_DB_URL_HERE', // Replace with your actual database URL
+
+    // -------------------------------------------------------------------------
+    // Discord Client Options
+    // -------------------------------------------------------------------------
+    CLIENT_OPTIONS: {
+        intents: [
+            GatewayIntentBits.Guilds,
+            GatewayIntentBits.GuildVoiceStates,
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.MessageContent, // CRITICAL for command text reading
+        ],
     },
 
-    // PATHS
-    COMMANDS_PATH: './commands',
-    COGS_PATH: './cogs', // Button/Interaction Handlers
+    // Visual Settings
+    EMBED_COLOR: 0x0099ff,
 
-    // MUSIC CONFIGURATION
+    // Music Bot Settings
     MUSIC: {
-        MAX_QUEUE_SIZE: 50,
-        DEFAULT_VOLUME: 0.8, // 80% volume (0.0 to 1.0)
-        INACTIVITY_TIMEOUT_MS: 300000, // 5 minutes
+        DEFAULTVOLUME: 0.5,              // Default volume level (between 0 and 1)
+        MAXQUEUESIZE: 50,                // Max number of songs in the queue
+        INACTIVITYTIMEOUTMS: 300000,    // 5 minutes inactivity timeout in milliseconds
     },
 
-    // CUSTOM BUTTON IDs (Cogs) - Inko cogs/ folder mein handle kiya jaata hai
-    CUSTOM_IDS: {
-        PLAY_PAUSE: 'music_play_pause',
-        SKIP: 'music_skip',
-        PREVIOUS: 'music_previous', // Naya ID
-        STOP: 'music_stop',
-        QUEUE: 'music_show_queue',
-        // Loop buttons (Optional: Can be added later)
+    // Custom Button IDs for music controls if any (example)
+    CUSTOMIDS: {
+        PREVIOUS: 'previous',
+        PLAYPAUSE: 'playpause',
+        SKIP: 'skip',
+        QUEUE: 'queue',
+        STOP: 'stop',
     },
 };

@@ -1,85 +1,64 @@
-// commands/play.js
-// Music chalaane ka mukhya command. YouTube URL aur Search dono ko support karta hai.
-
-const ytdl = require('ytdl-core');
-const ytSearch = require('yt-search'); // YouTube Search ke liye
+const { SlashCommandBuilder } = require('discord.js');
+const yts = require('yt-search');  // YouTube search package
 const MusicPlayer = require('../utility/MusicPlayer');
-
 module.exports = {
-    data: {
-        name: 'play',
-        description: 'YouTube URL या Search Term से गाना चलाएं/queue में जोड़ें।',
-        aliases: ['p', 'add'] 
-    },
-    
+    data: new SlashCommandBuilder()
+        .setName('play')
+        .setDescription('YouTube या Spotify से गाना बजाएं या क्यू में जोड़ें।')
+        .addStringOption(option =>
+            option.setName('query')
+                .setDescription('गाने का नाम या URL')
+                .setRequired(true)),
+    aliases: ['p', 'add'],
+
     /**
-     * @param {object} context
-     * @param {import('discord.js').Message} context.message
-     * @param {string[]} context.args
-     * @param {import('../src/Client')} context.client
+     * @param {ExtendedClient} client
+     * @param {Message} message
+     * @param {string[]} args
      */
-    async execute({ message, args, client }) {
+    async execute(client, message, args) {
+        // Argument check
+        if (!args || args.length === 0) {
+            return message.reply({ content: '❌ कृपया गाने का नाम या लिंक प्रदान करें!' });
+        }
+
         const query = args.join(' ');
-        if (!query) {
-            return message.reply('🎶 Kripya ek YouTube URL ya search term dein.');
-        }
 
-        const member = message.member;
-        const voiceChannel = member.voice.channel;
-
+        // Voice channel check
+        const voiceChannel = message.member?.voice.channel;
         if (!voiceChannel) {
-            return message.reply('🔊 Gaana chalaane ke liye pehle kisi voice channel mein join ho jaiye.');
+            return message.reply({ content: '❌ गाना बजाने के लिए आपको एक वॉइस चैनल में होना चाहिए!' });
         }
 
-        const permissions = voiceChannel.permissionsFor(client.user);
-        if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
-            return message.reply('❌ Mujhe voice channel mein judne aur bolne ki anumati nahi hai.');
-        }
-
-        let player = client.musicPlayers.get(message.guildId);
-        let trackInfo;
-
-        try {
-            let videoUrl;
-            
-            if (ytdl.validateURL(query)) {
-                videoUrl = query;
-            } else {
-                // YOUTUBE SEARCH LOGIC
-                const searchResults = await ytSearch(query);
-                const videos = searchResults.videos.slice(0, 1);
-                
-                if (videos.length === 0) {
-                    return message.reply('❌ Is search term ke liye koi video nahi mila.');
-                }
-                videoUrl = videos[0].url;
+        // YouTube URL fetch karna: agar direct URL nahi diya to search karo
+        let url = query;
+        if (!query.startsWith('http')) {
+            const searchResult = await yts(query);
+            if (!searchResult || !searchResult.videos || searchResult.videos.length === 0) {
+                return message.reply({ content: '❌ गाना नहीं मिला!' });
             }
-            
-            // Video details fetch karna
-            const info = await ytdl.getInfo(videoUrl);
-            trackInfo = {
-                title: info.videoDetails.title.substring(0, 45),
-                url: videoUrl,
-                duration: info.videoDetails.lengthSeconds,
-                requester: message.author.tag
-            };
-
-        } catch (error) {
-            console.error('Music Processing Error:', error);
-            return message.reply('❌ Video ki jaankari lene ya search karne mein dikkat aayi.');
+            url = searchResult.videos[0].url;
         }
 
-        if (!player) {
-            player = new MusicPlayer(client, message.guild);
-            client.musicPlayers.set(message.guildId, player);
-            
-            const joined = await player.join(voiceChannel);
-            if (!joined) return;
-        } else if (player.voiceConnection.joinConfig.channelId !== voiceChannel.id) {
-            return message.reply('❌ Bot pehle se hi dusre voice channel mein music chala raha hai.');
+        // MusicPlayer instance banayein ya existing lein
+        let musicPlayer = client.musicPlayers.get(message.guild.id);
+        if (!musicPlayer) {
+            musicPlayer = new MusicPlayer(client, message.guild);
+            client.musicPlayers.set(message.guild.id, musicPlayer);
         }
 
-        player.addTrack(trackInfo, message);
-        message.delete().catch(() => {});
-    }
+        // Gaana queue mein add karo
+        musicPlayer.addTrack({
+            title: query,
+            url: url,
+            requester: message.author.tag,
+        }, message);
+
+        // Agar koi gaana abhi play nahi ho raha, to play start karo
+        if (!musicPlayer.current) {
+            musicPlayer.playNext();
+        }
+
+        return message.reply({ content: `🎵 अब बजा रहा हूँ: **${query}**` });
+    },
 };

@@ -1,53 +1,47 @@
-// commands/help.js
-// बॉट के सभी उपलब्ध कमांड्स को दिखाता है, aliases ke saath.
+// File: commands/help.js
 
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
-    data: {
-        name: 'help',
-        description: 'सभी उपलब्ध म्यूजिक और यूटिलिटी कमांड्स दिखाता है।',
-        aliases: ['h', 'commands'] // Help ke liye aliases
-    },
+    data: new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('सभी उपलब्ध कमांड्स की सूची प्रदान करता है।'),
+    
+    // --- FIX: Add 'h' as an alias ---
+    aliases: ['h', 'commands'], 
     
     /**
-     * @param {object} context
-     * @param {import('discord.js').Message} context.message
-     * @param {import('../src/Client')} context.client
-     * @param {string} context.prefix - Dynamically fetched prefix.
+     * @param {ExtendedClient} client 
+     * @param {Message} message
+     * @param {string[]} args
      */
-    async execute({ message, client, prefix }) {
-        // Command list banane ke liye mukhya names ka ek set banayein
+    async execute(client, message, args) {
+        const commands = client.commands; // client.commands is a Collection
         const uniqueCommands = new Map();
-        
-        // Commands ko iterate karein aur mukhya naam se group karein
-        client.commands.forEach(command => {
-            if (!uniqueCommands.has(command.data.name)) {
-                uniqueCommands.set(command.data.name, command);
+
+        // Filter out duplicate aliases and only keep the main command entry
+        commands.forEach((cmd, name) => {
+            if (!uniqueCommands.has(cmd.data.name)) {
+                uniqueCommands.set(cmd.data.name, cmd);
             }
         });
 
-        const commandFields = Array.from(uniqueCommands.values()).map(command => {
-            const name = command.data.name;
-            const aliases = command.data.aliases || [];
-            
-            // Aliases string banao
-            const aliasStr = aliases.length > 0 ? ` (Aliases: ${aliases.map(a => `${prefix}${a}`).join(', ')})` : '';
+        // Map the unique commands to a string list
+        const commandList = Array.from(uniqueCommands.values())
+            .map(cmd => {
+                const prefix = client.config.DEFAULT_PREFIX;
+                const name = cmd.data.name;
+                const description = cmd.data.description;
+                return `\`${prefix}${name}\`: ${description}`;
+            })
+            .join('\n');
 
-            return {
-                name: `${prefix}${name}${aliasStr}`,
-                value: command.data.description,
-                inline: false,
-            };
-        });
+        const embed = new EmbedBuilder()
+            .setColor(client.config.EMBED_COLOR || 0x0099ff)
+            .setTitle('EchoTune संगीत बॉट कमांड्स')
+            .setDescription(`उपलब्ध कमांड्स की सूची:\n\n${commandList}`)
+            .setFooter({ text: `उपयोग के लिए अपने मैसेज से पहले '${client.config.DEFAULT_PREFIX}' लगाएं।` });
 
-        const helpEmbed = new EmbedBuilder()
-            .setColor(0x3498DB)
-            .setTitle('🎶 Discord Music Bot Commands')
-            .setDescription(`वर्तमान सर्वर prefix है: \`${prefix}\`\n\nसभी कमांड्स नीचे सूचीबद्ध हैं:`)
-            .setFields(commandFields)
-            .setFooter({ text: 'संगीत चलाने के लिए !play <URL/Search>' });
-
-        await message.reply({ embeds: [helpEmbed] });
-    }
+        message.reply({ embeds: [embed] });
+    },
 };

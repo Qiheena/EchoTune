@@ -1,29 +1,42 @@
-// src/Client.js
-// Discord Client ko extend karke hum ismein music player aur commands collections jaisi custom properties jodd rahe hain.
+// File: src/Client.js
 
 const { Client, Collection } = require('discord.js');
-const { getFirestore } = require('firebase-admin/firestore'); // Firestore admin SDK
+const { Database } = require('../utility/Database'); // Corrected import
 const config = require('../config');
 
-class MusicClient extends Client {
-    constructor() {
-        super({ intents: config.intents });
+class ExtendedClient extends Client {
+    constructor(options) {
+        super(options);
 
-        // Command files ko store karne ke liye
-        /** @type {Collection<string, object>} */
-        this.commands = new Collection(); 
+        // Store commands as a collection
+        this.commands = new Collection();
+        
+        // Store button interactions (for music controls)
+        this.cogs = new Collection();
 
-        // Interaction (Button/Select Menu) handlers ko store karne ke liye
-        /** @type {Collection<string, object>} */
-        this.cogs = new Collection(); 
+        // Music player instances (map Guild ID to player state)
+        // This fixes the 'musicPlayers' undefined error.
+        this.musicPlayers = new Map(); 
 
-        // Active MusicPlayer instances ko store karne ke liye (guildId ke saath mapped)
-        /** @type {Collection<string, import('../utility/MusicPlayer')>} */
-        this.musicPlayers = new Collection(); 
-
-        // Database instance
-        this.db = getFirestore();
+        // Store configuration
+        this.config = config;
+        
+        // Use a private property to store the database instance
+        this._database = null;
     }
+
+    /**
+     * Getter for the database instance. Loads it lazily.
+     * This fixes the 'Database is not a constructor' error.
+     */
+    get database() {
+        if (!this._database) {
+            this._database = new Database();
+        }
+        return this._database;
+    }
+
+    // Add other methods like loadCommands, loadEvents here...
 }
 
-module.exports = MusicClient;
+module.exports = { ExtendedClient };

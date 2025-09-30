@@ -1,138 +1,90 @@
 // cogs/interactionHandler.js
-// Yeh file Discord Buttons (Interactions) ko handle karti hai.
-// Har customId ke liye ek 'cog' (handler) define kiya gaya hai.
+// Yeh file Discord buttons par hone wale clicks (Interactions) ko handle karti hai.
 
 const { CUSTOM_IDS } = require('../config');
 
-// === PREVIOUS BUTTON HANDLER ===
-module.exports[CUSTOM_IDS.PREVIOUS] = {
-    // Custom ID, jo MusicPlayer ke buttons mein set kiya gaya hai
-    name: CUSTOM_IDS.PREVIOUS, 
-    
-    /**
-     * Pichhle gaane par jaane ke liye
-     * @param {object} context
-     * @param {import('discord.js').ButtonInteraction} context.interaction
-     * @param {import('../utility/MusicPlayer')} context.player
-     */
-    async execute({ interaction, player }) {
-        if (!player.previousTrack()) {
-            return interaction.reply({ 
-                content: '❌ Pichhle gaane par nahi jaa sakte, history khali hai!', 
-                ephemeral: true 
-            });
-        }
-        // Interaction ko acknowledge karein taaki "is thinking" message chala jaaye
-        await interaction.deferUpdate(); 
-    }
-};
+// Cog ke liye naam define karein taki index.js ise Event Handler ki tarah load kare.
+module.exports.name = 'interactionHandler';
 
-// === PLAY/PAUSE BUTTON HANDLER ===
-module.exports[CUSTOM_IDS.PLAY_PAUSE] = {
-    name: CUSTOM_IDS.PLAY_PAUSE,
-    
-    /**
-     * Gaane ko rokne aur fir se chalaane ke liye
-     * @param {object} context
-     * @param {import('discord.js').ButtonInteraction} context.interaction
-     * @param {import('../utility/MusicPlayer')} context.player
-     */
-    async execute({ interaction, player }) {
-        if (!player.current) {
-             return interaction.reply({ 
-                content: '❌ Koi gaana nahi chal raha hai jise roka ya shuru kiya jaa sake.', 
-                ephemeral: true 
-            });
-        }
-        player.togglePause();
-        await interaction.deferUpdate();
-    }
-};
+/**
+ * Button interactions ko handle karta hai.
+ * @param {import('discord.js').Client} client - Discord client instance
+ * @param {import('discord.js').ButtonInteraction} interaction - Button interaction object
+ */
+module.exports.execute = async (client, interaction) => {
+    // 1. Check karein ki user voice channel mein hai ya nahi
+    const member = interaction.member;
+    const guildId = interaction.guildId;
 
-// === SKIP BUTTON HANDLER ===
-module.exports[CUSTOM_IDS.SKIP] = {
-    name: CUSTOM_IDS.SKIP,
-    
-    /**
-     * Agle gaane par jaane ke liye
-     * @param {object} context
-     * @param {import('discord.js').ButtonInteraction} context.interaction
-     * @param {import('../utility/MusicPlayer')} context.player
-     */
-    async execute({ interaction, player }) {
-        if (player.queue.length === 0 && player.loopMode !== 'queue') {
-            return interaction.reply({ 
-                content: '❌ Queue mein aur koi gaana nahi hai jise chalaaya jaa sake.', 
-                ephemeral: true 
-            });
-        }
-        player.skip();
-        await interaction.deferUpdate();
-    }
-};
-
-// === STOP BUTTON HANDLER ===
-module.exports[CUSTOM_IDS.STOP] = {
-    name: CUSTOM_IDS.STOP,
-    
-    /**
-     * Bot ko band karke channel se hataane ke liye
-     * @param {object} context
-     * @param {import('discord.js').ButtonInteraction} context.interaction
-     * @param {import('../utility/MusicPlayer')} context.player
-     */
-    async execute({ interaction, player }) {
-        player.destroy('User stopped via button');
-        
-        // Button ko response dena, ye message ko update kar dega aur buttons hata dega
-        await interaction.update({ 
-            content: '👋 Playback band kar diya gaya hai. Bot channel chhod raha hai.',
-            embeds: [],
-            components: [] 
+    if (!member || !member.voice.channel) {
+        return interaction.reply({
+            content: '🎶 Gaana control karne ke liye aapko pehle voice channel mein hona chahiye!',
+            ephemeral: true
         });
     }
-};
 
-// === QUEUE BUTTON HANDLER ===
-module.exports[CUSTOM_IDS.QUEUE] = {
-    name: CUSTOM_IDS.QUEUE,
-    
-    /**
-     * Queue ki list dikhaane ke liye
-     * @param {object} context
-     * @param {import('discord.js').ButtonInteraction} context.interaction
-     * @param {import('../utility/MusicPlayer')} context.player
-     */
-    async execute({ interaction, player }) {
-        if (!player.current) {
-             return interaction.reply({ 
-                content: '❌ Abhi koi gaana nahi chal raha hai aur na hi queue mein koi item hai.', 
-                ephemeral: true 
-            });
-        }
-
-        const queue = player.queue;
-        const queueLength = queue.length;
-        
-        let description = `▶️ **Ab Chal Raha Hai:** [${player.current.title}](${player.current.url})\n\n`;
-
-        if (queueLength === 0) {
-            description += '📜 **Queue Khali Hai**।';
-        } else {
-            const queueList = queue.slice(0, 5).map((track, index) => 
-                `**${index + 1}.** [${track.title}](${track.url})`
-            ).join('\n');
-            
-            description += `📜 **Queue (${queueLength} items):**\n${queueList}`;
-            
-            if (queueLength > 5) {
-                description += `\n...Aur ${queueLength - 5} gaane line mein hain.`;
-            }
-        }
-
-        await interaction.reply({
-            content: description,
-            ephemeral: true // Yeh message sirf button dabane waale ko dikhega
+    // 2. Music Player instance lo
+    const player = client.musicPlayers.get(guildId);
+    if (!player) {
+        return interaction.reply({
+            content: '🛑 Abhi koi gaana nahi chal raha hai.',
+            ephemeral: true
         });
+    }
+
+    // 3. Command ke adhaar par action lo
+    try {
+        await interaction.deferUpdate(); // Interaction ko acknowledge karo
+
+        switch (interaction.customId) {
+            case CUSTOM_IDS.PLAY_PAUSE:
+                if (player.audioPlayer.state.status === 'playing') {
+                    player.pause();
+                    await interaction.editReply({ content: '⏸️ Gaana roka gaya.' });
+                } else {
+                    player.resume();
+                    await interaction.editReply({ content: '▶️ Gaana phir se shuru hua.' });
+                }
+                break;
+
+            case CUSTOM_IDS.SKIP:
+                player.playNext(true); // Skip is true
+                // Reply music player se aaega
+                break;
+
+            case CUSTOM_IDS.PREVIOUS:
+                player.playPrevious();
+                // Reply music player se aaega
+                break;
+
+            case CUSTOM_IDS.STOP:
+                player.destroy();
+                client.musicPlayers.delete(guildId);
+                await interaction.editReply({ content: '⏹️ Playback band kiya gaya aur bot channel se hata.' });
+                break;
+            
+            case CUSTOM_IDS.QUEUE:
+                // Isme queue list dikhani chahiye. Simple reply de sakte hain.
+                const queueList = player.queue.map((track, index) => `${index + 1}. ${track.title}`).join('\n');
+                await interaction.editReply({
+                    content: `🎶 **Queue List:**\n${queueList || 'Queue khaali hai.'}`,
+                    ephemeral: true // Taaki sirf dabane wala user hi dekh sake
+                });
+                break;
+            
+            // Note: Volume ya loop change buttons ko yahan handle kiya ja sakta hai agar wo music player embed mein hote.
+
+            default:
+                await interaction.editReply({ content: 'Unknown button action.', ephemeral: true });
+                break;
+        }
+
+        // Action ke baad Music Player Embed ko update karo
+        player.updateMessage();
+
+    } catch (error) {
+        console.error('Interaction processing error:', error);
+        // DeferUpdate ke baad error aaya to editReply use karo
+        await interaction.editReply({ content: 'An error occurred while handling the button click.', ephemeral: true });
     }
 };
